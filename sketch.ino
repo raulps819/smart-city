@@ -50,6 +50,7 @@ struct TrafficLightTimes {
     int greenTime1;
     int greenTime2;
     int yellow2RedTime;
+    int red2GreenTime;
     int rainyExtraTime;
     int blinkTime;
 };
@@ -175,6 +176,7 @@ class Intersection {
     TrafficLight* TL1;
     TrafficLight* TL2;
     IntersectionState state;
+    IntersectionState lastState;
     IntersectionMode mode;
     unsigned long lastStateChange;
     TrafficLightTimes timings;
@@ -185,6 +187,7 @@ class Intersection {
     Intersection(TrafficLight* tl1, TrafficLight* tl2, TrafficLightTimes tlt) 
       : TL1(tl1), TL2(tl2), state(G1R2), mode(NORMAL), timings(tlt), blink(false), isRainy(false) {
       lastStateChange = millis();
+      lastState = state;
       updateTrafficLights();
     }
     
@@ -227,27 +230,46 @@ class Intersection {
             case G1R2: // tiempo verde TL1
               if (timeSinceLastChange >= timings.greenTime1) {
                 state = Y1R2;
+                lastState = G1R2;
                 lastStateChange = millis();
               }
               break;
               
             case Y1R2: // tiempo yellow2red and rainyyellow
               if (timeSinceLastChange >= (timings.yellow2RedTime + (isRainy ? timings.rainyExtraTime : 0))) {
-                state = R1G2;
+                state = R1R2;
+                lastState = Y1R2;
                 lastStateChange = millis();
               }
               break;
-              
+
+            case R1R2: // tiempo yellow2red and rainyyellow
+                if (lastState == Y1R2) {
+                    if (timeSinceLastChange >= (timings.red2GreenTime + (isRainy ? timings.rainyExtraTime : 0))) {
+                        state = R1G2;
+                        lastStateChange = millis();
+                    }
+                }
+                if (lastState == R1Y2) {
+                    if (timeSinceLastChange >= (timings.red2GreenTime + (isRainy ? timings.rainyExtraTime : 0))) {
+                        state = G1R2;
+                        lastStateChange = millis();
+                    }
+                }
+                break;
+
             case R1G2: // tiempo verde TL2
               if (timeSinceLastChange >= timings.greenTime2) {
                 state = R1Y2;
+                lastState = R1G2;
                 lastStateChange = millis();
               }
               break;
               
             case R1Y2: // tiempo yellow2red and rainyyellow
               if (timeSinceLastChange >= (timings.yellow2RedTime + (isRainy ? timings.rainyExtraTime : 0))) {
-                state = G1R2;
+                state = R1R2;
+                lastState = R1Y2;
                 lastStateChange = millis();
               }
               break;
@@ -433,6 +455,7 @@ TrafficLightTimes timings = {
   5000,  // greenTime1 (5 seconds)
   4000,  // greenTime2 (4 seconds) 
   2000,  // yellow2RedTime (2 seconds)
+  2000,  // red2GreenTime (1 second)
   1000,  // rainyYellowTime (3 seconds)
   500    // blinkTime (0.5 seconds)
 };
