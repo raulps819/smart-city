@@ -417,6 +417,15 @@ class City {
             intersection->setMode(NORMAL);
             Serial.println("NORMAL MODE ACTIVATED");
         }
+        if (highPollution() && mode != EMERGENCY){
+            mode = EMERGENCY;
+            intersection->setMode(EMERGENCY);
+            Serial.println("EMERGENCY MODE ACTIVATED");
+        }else if(!highPollution() && mode == EMERGENCY){
+            mode = NORMAL;
+            intersection->setMode(NORMAL);
+            Serial.println("NORMAL MODE ACTIVATED");
+        }
         intersection->update();
     }
 
