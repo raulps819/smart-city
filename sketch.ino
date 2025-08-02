@@ -104,7 +104,7 @@ class TrafficSensor : public Sensor {
       }
       
       bool vehicleDetected() {
-        return readValue() == HIGH;
+        return readValue() == 0;
       }
     };
     
@@ -175,6 +175,12 @@ class Intersection {
   private:
     TrafficLight* TL1;
     TrafficLight* TL2;
+    TrafficSensor* TS1;
+    TrafficSensor* TS2;
+    TrafficSensor* TS3;
+    TrafficSensor* TS4;
+    TrafficSensor* TS5;
+    TrafficSensor* TS6;
     IntersectionState state;
     IntersectionState lastState;
     IntersectionMode mode;
@@ -184,8 +190,11 @@ class Intersection {
     bool isRainy;
     
   public:
-    Intersection(TrafficLight* tl1, TrafficLight* tl2, TrafficLightTimes tlt) 
-      : TL1(tl1), TL2(tl2), state(G1R2), mode(NORMAL), timings(tlt), blink(false), isRainy(false) {
+    Intersection(TrafficLight* tl1, TrafficLight* tl2, 
+        TrafficSensor* ts1, TrafficSensor* ts2, TrafficSensor* ts3, TrafficSensor* ts4, 
+        TrafficSensor* ts5, TrafficSensor* ts6, TrafficLightTimes tlt) 
+    : TL1(tl1), TL2(tl2), TS1(ts1), TS2(ts2), TS3(ts3), TS4(ts4), TS5(ts5), TS6(ts6), 
+      state(G1R2), mode(NORMAL), timings(tlt), blink(false), isRainy(false) {
       lastStateChange = millis();
       lastState = state;
       updateTrafficLights();
@@ -223,7 +232,18 @@ class Intersection {
     void update() {
       unsigned long currentTime = millis();
       unsigned long timeSinceLastChange = currentTime - lastStateChange;
-      
+      unsigned int trafficCount1 = 0;
+      unsigned int trafficCount2 = 0;
+
+    // Check if any traffic sensors detect vehicles
+      if (TS1->vehicleDetected()) trafficCount1++;
+      if (TS2->vehicleDetected()) trafficCount1++;
+      if (TS3->vehicleDetected()) trafficCount1++;
+      if (TS4->vehicleDetected()) trafficCount2++;
+      if (TS5->vehicleDetected()) trafficCount2++;
+      if (TS6->vehicleDetected()) trafficCount2++;
+
+
       switch (mode) {
         case NORMAL:
           switch (state) {
@@ -278,18 +298,28 @@ class Intersection {
           break;
           
         case NIGHT:
-            if(timeSinceLastChange >= timings.blinkTime){
-                blink = !blink;
-                if (blink){
-                    TL1->setState(YELLOW);
-                    TL2->setState(YELLOW);
-                }else{
-                    TL1->setState(OFF);
-                    TL2->setState(OFF);
+            if (trafficCount1 > 0 || trafficCount2 > 0) {
+                // Si hay tráfico, cambiar a modo normal
+                if (trafficCount1 > trafficCount2) {
+                    state = G1R2; // Priorizar TL1
+                } else {
+                    state = R1G2; // Priorizar TL2
                 }
                 lastStateChange = millis();
+                updateTrafficLights();
+            } else {
+                if(timeSinceLastChange >= timings.blinkTime){
+                    blink = !blink;
+                    if (blink){
+                        TL1->setState(YELLOW);
+                        TL2->setState(YELLOW);
+                    }else{
+                        TL1->setState(OFF);
+                        TL2->setState(OFF);
+                    }
+                    lastStateChange = millis();
+                }
             }
-          
           break;
           
         case EMERGENCY:
@@ -470,7 +500,8 @@ TrafficLightTimes timings = {
 };
 
 // Create intersection
-Intersection intersection(&tl1, &tl2, timings);
+Intersection intersection(&tl1, &tl2, &trafficSensor1, &trafficSensor2, 
+    &trafficSensor3, &trafficSensor4, &trafficSensor5, &trafficSensor6, timings);
 
 // Create city object
 City city(&intersection, &lightSensor1, &lightSensor2, &co2Sensor,
