@@ -53,6 +53,7 @@ struct TrafficLightTimes {
     int red2GreenTime;
     int rainyExtraTime;
     int blinkTime;
+    int walkerTime;
 };
 
 enum IntersectionMode {
@@ -122,6 +123,42 @@ class CO2Sensor : public Sensor {
       }
 };
 
+class WalkerButton : public Sensor {
+  private:
+    bool wasPressed;
+    bool isPressed;
+    int numPresses;
+    int readValue() override {
+      return digitalRead(pin);
+    }
+  public:
+    WalkerButton(int pin, String name) : Sensor(pin, name) {}
+  
+    void update() {
+      if (readValue() == HIGH) {
+        wasPressed = true;
+        numPresses++;
+      }
+    }
+
+    void reset() {
+      wasPressed = false;
+      numPresses = 0;
+    }
+
+    bool getIsPressed() {
+      return isPressed;
+    }
+
+    bool getWasPressed() {
+      return wasPressed;
+    }
+
+    int getNumPresses() {
+      return numPresses;
+    }
+};
+
 class TrafficLight {
     private:
       int redPin;
@@ -188,6 +225,8 @@ class Intersection {
     TrafficLightTimes timings;
     bool blink;
     bool isRainy;
+    WalkerButton* walkerButton1;
+    WalkerButton* walkerButton2;
     
   public:
     Intersection(TrafficLight* tl1, TrafficLight* tl2, 
@@ -195,6 +234,7 @@ class Intersection {
         TrafficSensor* ts5, TrafficSensor* ts6, TrafficLightTimes tlt) 
     : TL1(tl1), TL2(tl2), TS1(ts1), TS2(ts2), TS3(ts3), TS4(ts4), TS5(ts5), TS6(ts6), 
       state(G1R2), mode(NORMAL), timings(tlt), blink(false), isRainy(false) {
+
       lastStateChange = millis();
       lastState = state;
       updateTrafficLights();
@@ -248,7 +288,8 @@ class Intersection {
         case NORMAL:
           switch (state) {
             case G1R2: // tiempo verde TL1
-              if (timeSinceLastChange >= timings.greenTime1) {
+              if (timeSinceLastChange >= timings.greenTime1 + (walkerButton2->getWasPressed() ? timings.walkerTime : 0)) {
+                walkerButton2->reset();
                 state = Y1R2;
                 lastState = G1R2;
                 lastStateChange = millis();
@@ -279,7 +320,8 @@ class Intersection {
                 break;
 
             case R1G2: // tiempo verde TL2
-              if (timeSinceLastChange >= timings.greenTime2) {
+              if (timeSinceLastChange >= timings.greenTime2 + (walkerButton1->getWasPressed() ? timings.walkerTime : 0)) {
+                walkerButton1->reset();
                 state = R1Y2;
                 lastState = R1G2;
                 lastStateChange = millis();
@@ -495,9 +537,14 @@ TrafficLightTimes timings = {
   4000,  // greenTime2 (4 seconds) 
   2000,  // yellow2RedTime (2 seconds)
   2000,  // red2GreenTime (1 second)
-  1000,  // rainyYellowTime (3 seconds)
-  500    // blinkTime (0.5 seconds)
+  1000,  // rainyExtraTime (1 second)
+  500,   // blinkTime (0.5 seconds)
+  3000   // walkerTime (3 seconds)
 };
+
+// Walker buttons
+WalkerButton walkerButton1(P1, "Walker Button 1");
+WalkerButton walkerButton2(P2, "Walker Button 2");
 
 // Create intersection
 Intersection intersection(&tl1, &tl2, &trafficSensor1, &trafficSensor2, 
