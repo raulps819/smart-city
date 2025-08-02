@@ -125,6 +125,7 @@ class CO2Sensor : public Sensor {
 
 class WalkerButton : public Sensor {
   private:
+    int lastValue;
     bool wasPressed;
     bool isPressed;
     int numPresses;
@@ -132,10 +133,11 @@ class WalkerButton : public Sensor {
       return digitalRead(pin);
     }
   public:
-    WalkerButton(int pin, String name) : Sensor(pin, name) {}
+    WalkerButton(int pin, String name) : Sensor(pin, name), lastValue(0) {}
   
     void update() {
-      if (readValue() == HIGH) {
+      if (readValue() != lastValue) {
+        lastValue = readValue();
         wasPressed = true;
         numPresses++;
       }
@@ -231,9 +233,9 @@ class Intersection {
   public:
     Intersection(TrafficLight* tl1, TrafficLight* tl2, 
         TrafficSensor* ts1, TrafficSensor* ts2, TrafficSensor* ts3, TrafficSensor* ts4, 
-        TrafficSensor* ts5, TrafficSensor* ts6, TrafficLightTimes tlt) 
+        TrafficSensor* ts5, TrafficSensor* ts6, WalkerButton* wb1, WalkerButton* wb2, TrafficLightTimes tlt) 
     : TL1(tl1), TL2(tl2), TS1(ts1), TS2(ts2), TS3(ts3), TS4(ts4), TS5(ts5), TS6(ts6), 
-      state(G1R2), mode(NORMAL), timings(tlt), blink(false), isRainy(false) {
+      state(G1R2), mode(NORMAL), walkerButton1(wb1), walkerButton2(wb2), timings(tlt), blink(false), isRainy(false) {
 
       lastStateChange = millis();
       lastState = state;
@@ -539,7 +541,7 @@ TrafficLightTimes timings = {
   2000,  // red2GreenTime (1 second)
   1000,  // rainyExtraTime (1 second)
   500,   // blinkTime (0.5 seconds)
-  3000   // walkerTime (3 seconds)
+  30000   // walkerTime (30 seconds)
 };
 
 // Walker buttons
@@ -548,7 +550,8 @@ WalkerButton walkerButton2(P2, "Walker Button 2");
 
 // Create intersection
 Intersection intersection(&tl1, &tl2, &trafficSensor1, &trafficSensor2, 
-    &trafficSensor3, &trafficSensor4, &trafficSensor5, &trafficSensor6, timings);
+    &trafficSensor3, &trafficSensor4, &trafficSensor5, &trafficSensor6, 
+     &walkerButton1, &walkerButton2, timings);
 
 // Create city object
 City city(&intersection, &lightSensor1, &lightSensor2, &co2Sensor,
@@ -572,7 +575,8 @@ void setup() {
 void loop() {
   // Update intersection (handles all traffic light logic)
   city.update();
-  
+  walkerButton1.update();
+  walkerButton2.update();
   // Small delay to prevent overwhelming the system
   delay(10);
 }
