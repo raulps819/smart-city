@@ -122,6 +122,36 @@ class CO2Sensor : public Sensor {
       }
 };
 
+class WalkerButton : public Sensor {
+  private:
+    bool wasPressed;
+    bool isPressed;
+    int numPresses;
+    int readValue() override {
+      return digitalRead(pin);
+    }
+  public:
+    WalkerButton(int pin, String name) : Sensor(pin, name) {}
+  
+    void update() {
+      if (readValue() == HIGH) {
+        wasPressed = true;
+        numPresses++;
+      }
+    }
+    bool isPressed() {
+      return isPressed;
+    }
+
+    bool wasPressed() {
+      return wasPressed;
+    }
+
+    int getNumPresses() {
+      return numPresses;
+    }
+};
+
 class TrafficLight {
     private:
       int redPin;
